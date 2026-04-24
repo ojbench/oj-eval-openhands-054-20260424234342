@@ -136,15 +136,23 @@ public:
             
             // Add operator
             if (!first) {
-                if (term.a > 0) result += "+";
+                if (term.a > 0) {
+                    result += "+";
+                } else {
+                    result += "-";
+                }
+            } else {
+                // First term: only show minus sign for negative coefficients
+                if (term.a < 0) {
+                    result += "-";
+                }
             }
             first = false;
             
-            // Handle coefficient
-            if (abs(term.a) == 1 && (term.b > 0 || term.c > 0 || term.d > 0)) {
-                if (term.a < 0) result += "-";
-            } else {
-                result += to_string(term.a);
+            // Handle coefficient (absolute value)
+            int abs_coeff = abs(term.a);
+            if (abs_coeff != 1 || (term.b == 0 && term.c == 0 && term.d == 0)) {
+                result += to_string(abs_coeff);
             }
             
             // Handle x^b
@@ -171,12 +179,6 @@ public:
                     result += "^" + to_string(term.d);
                 }
                 result += "x";
-            }
-            
-            // If the term is just a constant and it's negative, we need to handle the sign
-            if (term.b == 0 && term.c == 0 && term.d == 0 && term.a < 0 && !result.empty() && result.back() == '-') {
-                result.pop_back();
-                result += to_string(term.a);
             }
         }
         
@@ -333,36 +335,50 @@ private:
         
         int x_exp = 0, sin_exp = 0, cos_exp = 0;
         
-        // Parse x
-        skipSpace();
-        if (pos < s.length() && s[pos] == 'x') {
-            pos++;
-            x_exp = parseExp();
-            if (x_exp == 0) x_exp = 1;  // x without ^ means x^1
-        }
-        
-        // Parse sin
-        skipSpace();
-        if (pos + 2 < s.length() && s.substr(pos, 3) == "sin") {
-            pos += 3;
-            sin_exp = parseExp();
-            if (sin_exp == 0) sin_exp = 1;  // sin without ^ means sin^1
+        // Keep parsing components as long as we see x, sin, or cos
+        while (pos < s.length()) {
+            bool parsed = false;
+            
+            // Parse x
             skipSpace();
             if (pos < s.length() && s[pos] == 'x') {
                 pos++;
+                int exp = parseExp();
+                if (exp == 0) exp = 1;  // x without ^ means x^1
+                x_exp += exp;
+                parsed = true;
             }
-        }
-        
-        // Parse cos
-        skipSpace();
-        if (pos + 2 < s.length() && s.substr(pos, 3) == "cos") {
-            pos += 3;
-            cos_exp = parseExp();
-            if (cos_exp == 0) cos_exp = 1;  // cos without ^ means cos^1
+            
+            // Parse sin
             skipSpace();
-            if (pos < s.length() && s[pos] == 'x') {
-                pos++;
+            if (pos + 2 < s.length() && s.substr(pos, 3) == "sin") {
+                pos += 3;
+                int exp = parseExp();
+                if (exp == 0) exp = 1;  // sin without ^ means sin^1
+                skipSpace();
+                if (pos < s.length() && s[pos] == 'x') {
+                    pos++;
+                }
+                sin_exp += exp;
+                parsed = true;
             }
+            
+            // Parse cos
+            skipSpace();
+            if (pos + 2 < s.length() && s.substr(pos, 3) == "cos") {
+                pos += 3;
+                int exp = parseExp();
+                if (exp == 0) exp = 1;  // cos without ^ means cos^1
+                skipSpace();
+                if (pos < s.length() && s[pos] == 'x') {
+                    pos++;
+                }
+                cos_exp += exp;
+                parsed = true;
+            }
+            
+            // If we didn't parse any component, break
+            if (!parsed) break;
         }
         
         return Term(coeff, x_exp, sin_exp, cos_exp);
